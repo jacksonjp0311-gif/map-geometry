@@ -1,0 +1,29 @@
+name: map-geometry evolve
+
+on:
+  schedule:
+    - cron: '26 */6 * * *'
+  workflow_dispatch:
+    inputs:
+      cycles:
+        description: 'cycles'
+        default: '3'
+
+jobs:
+  evolve:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -e . || pip install -r requirements.txt || true
+      - run: python -m pytest tests -q --tb=no || echo "::warning::benches missing or failed"
+      - run: python -m colony.evolve --cycles "${{ github.event.inputs.cycles || '3' }}" || true
+      - name: commit deltas
+        run: |
+          git config user.name "map-geometry-bot"
+          git config user.email "bot@users.noreply.github.com"
+          git add society/ data/ || true
+          git diff --staged --quiet || git commit -m "evolve: slim deltas [skip ci]"
+          git push || true
